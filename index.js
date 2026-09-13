@@ -25,7 +25,6 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
 
-// Lưu 20 lượt gần nhất trong RAM
 const MAX_HISTORY = 20;
 
 let aiHistory = [];
@@ -80,7 +79,6 @@ Phong cách:
 
             input,
 
-            // Không lưu response conversation ở phía OpenAI.
             store: false
         })
     });
@@ -89,6 +87,7 @@ Phong cách:
 
     if (!response.ok) {
         console.error('OpenAI API error:', data);
+
         throw new Error(
             data?.error?.message || `OpenAI API lỗi (${response.status})`
         );
@@ -100,7 +99,6 @@ Phong cách:
         throw new Error('OpenAI không trả về nội dung');
     }
 
-    // Lưu context
     aiHistory.push({
         role: 'user',
         content: userMessage
@@ -111,7 +109,6 @@ Phong cách:
         content: answer
     });
 
-    // Chỉ giữ 20 message gần nhất
     if (aiHistory.length > MAX_HISTORY) {
         aiHistory = aiHistory.slice(-MAX_HISTORY);
     }
@@ -124,7 +121,6 @@ Phong cách:
 // =========================
 
 async function sendLongMessage(channel, text) {
-    // Discord giới hạn message khoảng 2000 ký tự.
     const MAX_LENGTH = 1900;
 
     if (text.length <= MAX_LENGTH) {
@@ -137,7 +133,6 @@ async function sendLongMessage(channel, text) {
     while (remaining.length > 0) {
         let chunk = remaining.slice(0, MAX_LENGTH);
 
-        // Cố gắng cắt ở khoảng trắng
         if (remaining.length > MAX_LENGTH) {
             const lastSpace = chunk.lastIndexOf(' ');
 
@@ -147,6 +142,7 @@ async function sendLongMessage(channel, text) {
         }
 
         await channel.send(chunk.trim());
+
         remaining = remaining.slice(chunk.length).trim();
     }
 }
@@ -169,7 +165,9 @@ async function cleanupOldBotMessages() {
             return;
         }
 
-        console.log('Đang kiểm tra bot messages cũ trong #music...');
+        console.log(
+            'Đang kiểm tra bot messages cũ trong #music...'
+        );
 
         let lastId = null;
         let deletedCount = 0;
@@ -196,11 +194,13 @@ async function cleanupOldBotMessages() {
                     continue;
                 }
 
-                const age = Date.now() - message.createdTimestamp;
+                const age =
+                    Date.now() - message.createdTimestamp;
 
                 if (age >= THREE_DAYS) {
                     try {
                         await message.delete();
+
                         deletedCount++;
                     } catch (error) {
                         console.log(
@@ -237,11 +237,18 @@ client.once('ready', async () => {
         `Hideout Keeper đã online: ${client.user.tag}`
     );
 
-    console.log(`AI channel: ${AI_CHANNEL_ID || 'chưa cấu hình'}`);
-    console.log(`Music channel: ${MUSIC_CHANNEL_ID || 'chưa cấu hình'}`);
-    console.log(`OpenAI model: ${OPENAI_MODEL}`);
+    console.log(
+        `AI channel: ${AI_CHANNEL_ID || 'chưa cấu hình'}`
+    );
 
-    // Dọn bot messages #music cũ hơn 3 ngày
+    console.log(
+        `Music channel: ${MUSIC_CHANNEL_ID || 'chưa cấu hình'}`
+    );
+
+    console.log(
+        `OpenAI model: ${OPENAI_MODEL}`
+    );
+
     await cleanupOldBotMessages();
 });
 
@@ -250,15 +257,100 @@ client.once('ready', async () => {
 // =========================
 
 client.on('messageCreate', async (message) => {
+
     // Bỏ qua tất cả bot
     if (message.author.bot) return;
+
+
+    // =========================
+    // !clear
+    // =========================
+
+    if (message.content.startsWith('!clear')) {
+
+        // Chỉ người có quyền Manage Messages
+        // mới được sử dụng
+        if (
+            !message.member.permissions.has('ManageMessages')
+        ) {
+            const reply = await message.reply(
+                'K không có quyền dùng lệnh này 😭'
+            );
+
+            setTimeout(() => {
+                reply.delete().catch(() => {});
+            }, 3000);
+
+            return;
+        }
+
+        const args =
+            message.content.trim().split(/\s+/);
+
+        const amount =
+            parseInt(args[1], 10);
+
+        // Chỉ cho phép 1-100
+        if (
+            !amount ||
+            amount < 1 ||
+            amount > 100
+        ) {
+            const reply = await message.reply(
+                'Dùng như này: `!clear 10` (1-100)'
+            );
+
+            setTimeout(() => {
+                reply.delete().catch(() => {});
+            }, 4000);
+
+            return;
+        }
+
+        try {
+
+            // Xóa chính command !clear
+            await message.delete();
+
+            // Xóa message trong CHÍNH CHANNEL
+            // nơi K vừa gõ command
+            const deleted =
+                await message.channel.bulkDelete(
+                    amount,
+                    true
+                );
+
+            const reply =
+                await message.channel.send(
+                    `🧹 Đã xóa **${deleted.size}** tin nhắn.`
+                );
+
+            // Xóa thông báo sau 3 giây
+            setTimeout(() => {
+                reply.delete().catch(() => {});
+            }, 3000);
+
+        } catch (error) {
+
+            console.error(
+                'Clear error:',
+                error
+            );
+
+        }
+
+        return;
+    }
+
 
     // =========================
     // #MUSIC
     // =========================
 
     if (message.channel.id === MUSIC_CHANNEL_ID) {
+
         try {
+
             // Tin nhắn member -> xóa ngay
             await message.delete();
 
@@ -267,14 +359,17 @@ client.on('messageCreate', async (message) => {
             );
 
         } catch (error) {
+
             console.log(
                 'Không thể xóa tin nhắn member:',
                 error.message
             );
+
         }
 
         return;
     }
+
 
     // =========================
     // #AI
@@ -284,17 +379,19 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // Không để message rỗng
-    const userMessage = message.content.trim();
+    const userMessage =
+        message.content.trim();
 
     if (!userMessage) {
         return;
     }
 
     try {
+
         await message.channel.sendTyping();
 
-        const answer = await askGPT(userMessage);
+        const answer =
+            await askGPT(userMessage);
 
         await sendLongMessage(
             message.channel,
@@ -302,7 +399,11 @@ client.on('messageCreate', async (message) => {
         );
 
     } catch (error) {
-        console.error('GPT error:', error);
+
+        console.error(
+            'GPT error:',
+            error
+        );
 
         await message.reply(
             'Xin lỗi K, Linh đang gặp lỗi khi kết nối với GPT 😭'
@@ -314,4 +415,6 @@ client.on('messageCreate', async (message) => {
 // LOGIN
 // =========================
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(
+    process.env.DISCORD_TOKEN
+);
