@@ -20,6 +20,7 @@ const client = new Client({
 const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
 
 const MUSIC_CHANNEL_ID = process.env.MUSIC_CHANNEL_ID;
+const AUTO_DELETE_CHANNEL_ID = process.env.AUTO_DELETE_CHANNEL_ID;
 const AI_CHANNEL_ID = process.env.AI_CHANNEL_ID;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -85,7 +86,7 @@ Phong cách:
 
     const data = await response.json();
 
-    if (!response.ok) {
+     (!response.ok) {
         console.error('OpenAI API error:', data);
 
         throw new Error(
@@ -95,7 +96,7 @@ Phong cách:
 
     const answer = data.output_text?.trim();
 
-    if (!answer) {
+     (!answer) {
         throw new Error('OpenAI không trả về nội dung');
     }
 
@@ -347,7 +348,10 @@ client.on('messageCreate', async (message) => {
     // #MUSIC
     // =========================
 
-    if (message.channel.id === MUSIC_CHANNEL_ID) {
+    if (
+    message.channel.id === MUSIC_CHANNEL_ID ||
+    message.channel.id === AUTO_DELETE_CHANNEL_ID
+    ) {
 
         try {
 
