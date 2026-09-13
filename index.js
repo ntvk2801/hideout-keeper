@@ -86,7 +86,7 @@ Phong cách:
 
     const data = await response.json();
 
-     (!response.ok) {
+    if (!response.ok) {
         console.error('OpenAI API error:', data);
 
         throw new Error(
