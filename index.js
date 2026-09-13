@@ -96,7 +96,7 @@ Phong cách:
 
     const answer = data.output_text?.trim();
 
-     (!answer) {
+    if (!answer) {
         throw new Error('OpenAI không trả về nội dung');
     }
 
