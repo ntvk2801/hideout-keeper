@@ -8,6 +8,8 @@ const {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent
     ]
@@ -146,7 +148,57 @@ client.once('ready', async () => {
     console.log(
         `Music channel: ${MUSIC_CHANNEL_ID || 'chưa cấu hình'}`
     );
+const updateStats = async () => {
+    const guild = client.guilds.cache.first();
+    if (!guild) return;
 
+    await guild.members.fetch();
+
+    const residents = guild.members.cache.filter(
+        m => !m.user.bot
+    ).size;
+
+    const bots = guild.members.cache.filter(
+        m => m.user.bot
+    ).size;
+
+    const online = guild.members.cache.filter(
+        m =>
+            !m.user.bot &&
+            m.presence &&
+            m.presence.status !== 'offline'
+    ).size;
+
+    const residentsChannel =
+        guild.channels.cache.get('1548535639732125746');
+
+    const keeperChannel =
+        guild.channels.cache.get('1548543499018960936');
+
+    const onlineChannel =
+        guild.channels.cache.get('1548941016768315433');
+
+    if (residentsChannel) {
+        await residentsChannel.setName(
+            `👥 Residents: ${residents}`
+        );
+    }
+
+    if (keeperChannel) {
+        await keeperChannel.setName(
+            `🤖 Keeper: ${bots}`
+        );
+    }
+
+    if (onlineChannel) {
+        await onlineChannel.setName(
+            `🟢 Online: ${online}`
+        );
+    }
+};
+
+await updateStats();
+setInterval(updateStats, 10 * 60 * 1000);
     await cleanupOldBotMessages();
 });
 
